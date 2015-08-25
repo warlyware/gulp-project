@@ -2,11 +2,12 @@ var gulp = require('gulp');
 var args = require('yargs').argv;
 var config = require('./gulpconfig')();
 var del = require('del');
+var wiredep = require('wiredep').stream;
 
 var g = require('gulp-load-plugins')({lazy: true});
 
 gulp.task('vet', function() {
-  log('[1] checking source files for errors');
+  log('checking source files for errors');
   return gulp.src(config.dir.js)
     .pipe(g.if(args.verbose, g.print()))
     .pipe(g.jshint())
@@ -15,7 +16,7 @@ gulp.task('vet', function() {
 });
 
 gulp.task('css', ['clean-css'], function() {
-  log('[2] compiling less to css');
+  log('compiling less to css');
 
   return gulp.src(config.dir.less)
     .pipe(g.plumber())
@@ -33,9 +34,26 @@ gulp.task('less-watcher', function() {
   gulp.watch([config.dir.less], ['css']);
 });
 
+// task to update post bowerinstall
+gulp.task('wiredep', function() {
+  log('wire up bower css, js, and app.js into html');
+  var options = config.getWiredepDefaultOptions();
+  return gulp.src(config.dir.index)
+    .pipe(wiredep(options))
+    .pipe(g.inject(gulp.src(config.dir.js)))
+    .pipe(gulp.dest(config.dir.client));
+});
+
+gulp.task('inject', ['wiredep', 'css'], function() {
+  log('inject custom css into html and call wiredep');
+  return gulp.src(config.dir.index)
+    .pipe(g.inject(gulp.src(config.dir.css)))
+    .pipe(gulp.dest(config.dir.client));
+});
+
 
 function clean(path, cb) {
-  log('Cleaning: ' + g.util.colors.blue(path));
+  log('cleaning: ' + g.util.colors.blue(path));
   del(path, cb);
 }
 
